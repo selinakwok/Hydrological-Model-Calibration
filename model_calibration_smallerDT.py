@@ -5,10 +5,7 @@ from scipy.stats import pearsonr
 from scipy.optimize import differential_evolution
 from scipy.interpolate import interp1d
 
-# area = 8183.736
-# river = 155747.162
-
-df = pd.read_csv("calibration_data/cali_606_1.csv")
+df = pd.read_csv("calibration_data/cali_606_1.csv")  # replace with calibration data
 area = df["Area"][0]
 river = df["River"][0]
 obs_ppt = df["PPT"]

@@ -5,3 +5,4 @@ Developed for Geography undergraduate dissertation on hydrological modelling of 
 
 - model_calibration_smallerDT.py: for calibrating most upstream sub-basin models.   
 - model_calibration_DS_smallerDT.py: for calibrating sub-basins that have inflow from upstream discharge.   
+- sample_cali_data.csv: sample input calibration data.
