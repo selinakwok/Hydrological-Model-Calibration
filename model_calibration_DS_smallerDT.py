@@ -5,20 +5,20 @@ from scipy.stats import pearsonr
 from scipy.optimize import differential_evolution
 from scipy.interpolate import interp1d
 
-df = pd.read_csv("calibration_data/cali_546_2.csv")
+df = pd.read_csv("calibration_data/cali_14_332.csv")
 area = df["Area"][0]
 river = df["River"][0]
 obs_ppt = df["PPT"].dropna()
 obs_pet = df["PET"].dropna()
 obs_q = df["Q(m3/month)"].dropna()
-ups_q = df["UPS_Q(m3/month)"]
+ups_q = df["UPS_Q(m3/month)"].dropna()
 
 obs_ts = np.arange(0, 276, 1)
 ppt = interp1d(obs_ts, obs_ppt)
 pet = interp1d(obs_ts, obs_pet)
 obs_q_i = interp1d(obs_ts, obs_q)
 
-ts_i = np.arange(0, 275.02, 0.02)
+ts_i = np.arange(0, 275.015625, 0.015625)
 ppt = ppt(ts_i)
 ppt = [round(i, 2) for i in ppt]
 pet = pet(ts_i)
@@ -44,7 +44,7 @@ def performance(sim_q, obs_q):
     nse = 1 - (np.sum((sim_q_nonan - obs_q_nonan) ** 2) / np.sum((obs_q_nonan - mean_obs_q) ** 2))
 
     # percentage deviation (dv)
-    dv = np.mean((sim_q_nonan - obs_q_nonan) / (obs_q_nonan + 0.00000001)) * 100
+    dv = (np.mean(sim_q_nonan) - np.mean(obs_q_nonan)) / np.mean(obs_q_nonan) * 100
 
     return r, nse, dv
 
@@ -54,7 +54,7 @@ def performance(sim_q, obs_q):
 
 def model_v2(ppt, pet, area, river, ups_q, ss_depth, x_tf, rc_tf, x_per, rc_per, gws_depth, x_bf, rc_bf, rc_q):
     ss_t = round((area * 1000000) * ss_depth * 0.25, 2)
-    gws_t = round((area * 1000000) * gws_depth * 0.25, 2)
+    gws_t = round((area * 1000000) * gws_depth * 0.1, 2)
     cs_t = round(river, 2)
     sim_q = []
 
@@ -92,7 +92,7 @@ def model_v2(ppt, pet, area, river, ups_q, ss_depth, x_tf, rc_tf, x_per, rc_per,
         # print(">> olf: " + str(olf))
         # print(">> tf: " + str(tf))
         # print(">> per: " + str(per))
-        ss_t = round(ss_t + (ppt_t - pet_t - olf - tf - per) * 0.02, 2)  # update SS for next timestep
+        ss_t = round(ss_t + (ppt_t - pet_t - olf - tf - per) * 0.015625, 2)  # update SS for next timestep
         # print(">>>> delta ss: " + str((ppt_t - pet_t - olf - tf - per) * 0.125))
 
         if gws_t > min_gws:  # Baseflow (BF)
@@ -101,17 +101,18 @@ def model_v2(ppt, pet, area, river, ups_q, ss_depth, x_tf, rc_tf, x_per, rc_per,
             bf = 0
         # print(">> bf: " + str(bf))
 
-        gws_t = round(gws_t + (per - bf) * 0.02, 2)  # update GWS for next timestep
+        gws_t = round(gws_t + (per - bf) * 0.015625, 2)  # update GWS for next timestep
 
-        q = cs_t * rc_q  # Discharge (Q)
+        q = (cs_t + ups_q[t]) * rc_q  # Discharge (Q)
         # print(">>>> q: " + str(q))
 
         # print(">> ups_q: " + str(ups_q[t]))
-        cs_t = round(cs_t + (olf + tf + bf + ups_q[t] - q) * 0.02, 2)  # update CS for next timestep
+        cs_t = round(cs_t + (olf + tf + bf + ups_q[t] - q) * 0.015625, 2)  # update CS for next timestep
         # print(">>>> delta cs: " + str((olf + tf + bf + ups_q[t] - q) * 0.125))
 
         sim_q.append(q)
         # print("------")
+        # input()
 
     return sim_q
 
@@ -119,28 +120,28 @@ def model_v2(ppt, pet, area, river, ups_q, ss_depth, x_tf, rc_tf, x_per, rc_per,
 def diff_ev(x):
     ss_depth, x_tf, rc_tf, x_per, rc_per, gws_depth, x_bf, rc_bf, rc_q = x
     sim_q = model_v2(ppt, pet, area, river, ups_q, ss_depth, x_tf, rc_tf, x_per, rc_per, gws_depth, x_bf, rc_bf, rc_q)
-    sim_q = sim_q[::50]
+    sim_q = sim_q[::64]
     r, nse, dv = performance(sim_q, obs_q)
-    print("nse: " + str(nse))
+    print(nse)
+    # print("r: " + str(r))
     return -nse
 
 
-"""
-# ----- test model to see if it matches with STELLA -----
+"""# ----- test model to see if it matches with STELLA -----
 # model_v2(ppt, pet, area, river, ups_q, ss_depth, x_tf, rc_tf, x_per, rc_per, gws_depth, x_bf, rc_bf, rc_q)
-test_q = model_v2(ppt, pet, area, river, ups_q, 0.3474, 1.29, 0.9209, 0.9915, 0.8094, 7.8925, 1.4735, 0.9487, 0.999)
-test_q = test_q[::8]
+test_q = model_v2(ppt, pet, area, river, ups_q, 1.95, 0.33, 0.5, 0.3203, 0.9811, 7.2561, 1.7, 0.2, 0.9921)
+test_q = test_q[::64]
 print(obs_q.tolist())
 print(test_q)
 plt.plot(obs_q, label="obs")
 plt.plot(test_q, label="test")
 plt.legend()
 plt.show()
-# --------------------------------------------------------
-"""
+# --------------------------------------------------------"""
+
 
 # ss_depth, x_tf, rc_tf, x_per, rc_per, gws_depth, x_bf, rc_bf, rc_q
-bounds = [(0.1, 5), (0, 3), (0, 1), (0, 3), (0, 1), (4, 9), (0, 0), (0, 0), (0.9, 1)]
+bounds = [(0.1, 5), (0, 3), (0, 1), (0, 3), (0, 1), (4, 9), (0, 3), (0, 1), (0, 1)]
 res = differential_evolution(diff_ev, bounds=bounds, maxiter=10000)
 print("-----\ndifferential evolution:")
 print(res)

@@ -5,12 +5,12 @@ from scipy.stats import pearsonr
 from scipy.optimize import differential_evolution
 from scipy.interpolate import interp1d
 
-df = pd.read_csv("calibration_data/cali_606_1.csv")  # replace with calibration data
+df = pd.read_csv("calibration_data/cali_548_9.csv")  # replace with calibration data
 area = df["Area"][0]
 river = df["River"][0]
-obs_ppt = df["PPT"]
-obs_pet = df["PET"]
-obs_q = df["Q(m3/month)"]
+obs_ppt = df["PPT"].dropna()
+obs_pet = df["PET"].dropna()
+obs_q = df["Q(m3/month)"].dropna()
 print(area)
 print(river)
 
@@ -19,7 +19,7 @@ ppt = interp1d(obs_ts, obs_ppt)
 pet = interp1d(obs_ts, obs_pet)
 obs_q_i = interp1d(obs_ts, obs_q)
 
-ts_i = np.arange(0, 275.02, 0.02)
+ts_i = np.arange(0, 275.015625, 0.015625)
 ppt = ppt(ts_i)
 ppt = [round(i, 2) for i in ppt]
 pet = pet(ts_i)
@@ -92,7 +92,7 @@ def model_v2(ppt, pet, area, river, ss_depth, x_tf, rc_tf, x_per, rc_per, gws_de
         # print(">> olf: " + str(olf))
         # print(">> tf: " + str(tf))
         # print(">> per: " + str(per))
-        ss_t = ss_t + (ppt_t - pet_t - olf - tf - per) * 0.02  # update SS for next timestep
+        ss_t = ss_t + (ppt_t - pet_t - olf - tf - per) * 0.015625  # update SS for next timestep
         # print(">>>> ss(t+1): " + str(ss_t))
 
         if gws_t > min_gws:  # Baseflow (BF)
@@ -100,13 +100,13 @@ def model_v2(ppt, pet, area, river, ss_depth, x_tf, rc_tf, x_per, rc_per, gws_de
         else:
             bf = 0
 
-        gws_t = gws_t + (per - bf) * 0.02  # update GWS for next timestep
+        gws_t = gws_t + (per - bf) * 0.015625  # update GWS for next timestep
 
         q = cs_t * rc_q  # Discharge (Q)
         # print("cs_t: " + str(cs_t))
         # print(">>>> q: " + str(q))
 
-        cs_t = cs_t + (olf + tf + bf - q) * 0.02  # update CS for next timestep
+        cs_t = cs_t + (olf + tf + bf - q) * 0.015625  # update CS for next timestep
 
         sim_q.append(q)
         # print("------")
@@ -117,7 +117,7 @@ def model_v2(ppt, pet, area, river, ss_depth, x_tf, rc_tf, x_per, rc_per, gws_de
 def diff_ev(x):
     ss_depth, x_tf, rc_tf, x_per, rc_per, gws_depth, x_bf, rc_bf, rc_q = x
     sim_q = model_v2(ppt, pet, area, river, ss_depth, x_tf, rc_tf, x_per, rc_per, gws_depth, x_bf, rc_bf, rc_q)
-    sim_q = sim_q[::50]
+    sim_q = sim_q[::64]
     r, nse, dv = performance(sim_q, obs_q)
     print(nse)
     return -nse
@@ -133,7 +133,7 @@ plt.show()
 """
 
 # ss_depth, x_tf, rc_tf, x_per, rc_per, gws_depth, x_bf, rc_bf, rc_q
-bounds = [(0.1, 2), (0, 3), (0, 1), (0, 3), (0, 1), (3, 5), (0, 3), (0, 1), (0.95, 1)]
+bounds = [(0.1, 5), (0, 3), (0, 1), (0, 3), (0, 1), (3, 10), (0, 3), (0, 1), (0, 1)]
 res = differential_evolution(diff_ev, bounds=bounds, maxiter=10000)
 print("-----\ndifferential evolution:")
 print(res)
